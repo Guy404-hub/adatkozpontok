@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Adatközpont – áram, redundancia, mesterséges intelligencia</title>
+<style>
+:root{--ice:#EAF1F5;--ink:#12263A;--cold:#2A7BC8;--hot:#E8602C;--steel:#8FA3B3;--paper:#fff;--ok:#2E9E6B}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--ice);color:var(--ink);font:17px/1.6 Bahnschrift,"Segoe UI",system-ui,sans-serif}
+h1,h2,h3{line-height:1.15;margin:0 0 .5em;letter-spacing:-.01em}
+h1{font-size:clamp(2.2rem,6vw,4rem);font-weight:700}
+h2{font-size:clamp(1.6rem,3.5vw,2.3rem)}
+h3{font-size:1.1rem}
+p{margin:0 0 1em;max-width:68ch}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--hot);outline-offset:2px}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+nav{position:sticky;top:0;z-index:5;background:var(--ink);color:var(--ice)}
+nav .wrap{display:flex;gap:22px;overflow-x:auto;padding-top:10px;padding-bottom:10px}
+nav a{text-decoration:none;white-space:nowrap;font-size:.95rem;opacity:.85}
+nav a:hover{opacity:1;text-decoration:underline}
+.hero{background:var(--ink);color:var(--ice);padding:56px 0 64px}
+.hero .wrap{display:grid;grid-template-columns:1.1fr .9fr;gap:36px;align-items:center}
+.hero p{color:#C5D3DE;font-size:1.1rem}
+.rackrow{width:100%;height:auto}
+.rack{fill:#1B3A55;stroke:#34607F}
+.unit{fill:#0E1F30}
+.led{fill:var(--cold);animation:blink 2.4s infinite steps(2,jump-none)}
+.led.hot{fill:var(--hot)}
+@keyframes blink{50%{opacity:.15}}
+@media (prefers-reduced-motion:reduce){.led{animation:none}}
+section{padding:60px 0}
+section:nth-of-type(even){background:var(--paper)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
+.panel{background:var(--paper);border:1px solid #CBD8E1;border-radius:10px;padding:20px}
+section:nth-of-type(even) .panel{background:var(--ice)}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+button{font:inherit;cursor:pointer;border:1.5px solid var(--ink);background:transparent;color:var(--ink);border-radius:6px;padding:6px 14px}
+button:hover{background:var(--ink);color:var(--ice)}
+button[aria-pressed=true]{background:var(--cold);border-color:var(--cold);color:#fff}
+svg text{font-family:inherit}
+.zone{fill:var(--paper);stroke:var(--steel);stroke-width:1.5;transition:fill .25s,stroke .25s}
+.zone.on{fill:#CFE3F6;stroke:var(--cold);stroke-width:3}
+.lbl{font-size:12px;fill:var(--ink);pointer-events:none}
+label{display:block;font-weight:600;margin:14px 0 4px}
+input[type=range]{width:100%;accent-color:var(--cold)}
+output{font-variant-numeric:tabular-nums}
+.bar{display:flex;height:34px;border-radius:6px;overflow:hidden;background:#dbe5ec;margin:10px 0}
+.bar i{display:block;height:100%;transition:width .3s}
+.b-it{background:var(--cold)}.b-oh{background:var(--hot)}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+.kpis div{border-left:4px solid var(--cold);padding-left:10px}
+.kpis b{display:block;font-size:1.5rem;font-variant-numeric:tabular-nums}
+.kpis span{font-size:.85rem;color:#456}
+.note{font-size:.9rem;color:#456}
+.node rect{fill:var(--paper);stroke:var(--ok);stroke-width:2.5;transition:all .25s}
+.node text{font-size:14px;fill:var(--ink);pointer-events:none}
+.node{cursor:pointer}
+.node.dead rect{fill:#FBE3D9;stroke:var(--hot);stroke-dasharray:6 4}
+.node.rk.dead rect{fill:var(--hot)}
+.node.rk.dead text{fill:#fff}
+.wire{stroke:#C0CDD7;stroke-width:3;fill:none}
+.wire.live{stroke:var(--ok);stroke-width:4}
+.status{padding:12px 14px;border-radius:8px;font-weight:600;margin-top:12px}
+.s2{background:#D8F0E4}.s1{background:#FFE9C2}.s0{background:#FBD3C3}
+table{border-collapse:collapse;width:100%;margin-top:6px}
+th,td{padding:9px 10px;border-bottom:1px solid #CBD8E1;text-align:left}
+td:nth-child(n+2),th:nth-child(n+2){text-align:right;font-variant-numeric:tabular-nums}
+tr:hover td{background:#E4EEF5}
+dl{margin:0}dt{font-weight:700;margin-top:10px}dd{margin:0}
+.cmp{margin:16px 0}
+.cmp .row{display:grid;grid-template-columns:130px 1fr 90px;gap:10px;align-items:center;margin:8px 0}
+.cmp .track{background:#dbe5ec;border-radius:6px;height:30px;overflow:hidden}
+.cmp .track i{display:block;height:100%;transition:width .3s}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:24px}
+footer{background:var(--ink);color:#C5D3DE;padding:28px 0;font-size:.9rem}
+@media(max-width:780px){.hero .wrap,.grid2,.cards{grid-template-columns:1fr}.kpis{grid-template-columns:1fr}.cmp .row{grid-template-columns:100px 1fr 74px}}
+</style>
+</head>
+<body>
+
+<nav aria-label="Fejezetek"><div class="wrap">
+<a href="#mi">Felépítés</a><a href="#energia">Energiafogyasztás</a><a href="#redundancia">Redundancia</a><a href="#ai">Az AI szerepe</a>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+<div>
+<h1>Adatközpont: a felhő valódi helye</h1>
+<p>Minden videó, játék és mentés valahol egy hűtött, őrzött, kétszeresen betáplált teremben fut. Ez az oldal megmutatja, mi van benne, mennyi áramot fogyaszt, hogyan marad üzemben áramkimaradáskor, és mit változtat az mesterséges intelligencia.</p>
+<p class="note" style="color:#8FA3B3">A kék fények a normál működést jelzik, a narancsok a terhelt gépeket.</p>
+</div>
+<svg class="rackrow" id="racks" viewBox="0 0 440 270" role="img" aria-label="Öt szerverszekrény villogó állapotjelzőkkel"></svg>
+</div></header>
+
+<section id="mi"><div class="wrap">
+<h2>Mi van egy adatközpontban?</h2>
+<p>Válassz egy részt, és az ábrán kiemelődik a helye.</p>
+<div class="grid2">
+<div>
+<div class="tabs" id="tabs"></div>
+<div class="panel"><h3 id="tt"></h3><p id="td" style="margin:0"></p></div>
+</div>
+<svg viewBox="0 0 440 290" role="img" aria-label="Egy adatközpont keresztmetszete: hűtés, szerverterem, hálózat, tárolók, áramellátás">
+<rect x="6" y="6" width="428" height="278" rx="8" fill="none" stroke="#12263A" stroke-width="2"/>
+<rect class="zone" id="z-cool" x="20" y="18" width="400" height="44" rx="6"/><text class="lbl" x="220" y="45" text-anchor="middle">Hűtés: léghűtők, folyadékkörök</text>
+<g id="z-servers"><rect class="zone" x="120" y="76" width="300" height="110" rx="6"/>
+<rect x="140" y="92" width="40" height="78" rx="3" fill="#12263A"/><rect x="200" y="92" width="40" height="78" rx="3" fill="#12263A"/><rect x="260" y="92" width="40" height="78" rx="3" fill="#12263A"/><rect x="320" y="92" width="40" height="78" rx="3" fill="#12263A"/>
+<text class="lbl" x="390" y="130" text-anchor="middle">Szerverek</text></g>
+<path d="M130 178h280" stroke="#2A7BC8" stroke-width="3" stroke-dasharray="8 6" fill="none"/><text class="lbl" x="270" y="198" text-anchor="middle" fill="#2A7BC8" style="fill:#2A7BC8">hideg levegő a padló alól</text>
+<rect class="zone" id="z-net" x="20" y="76" width="88" height="50" rx="6"/><text class="lbl" x="64" y="105" text-anchor="middle">Hálózat</text>
+<rect class="zone" id="z-store" x="20" y="136" width="88" height="50" rx="6"/><text class="lbl" x="64" y="165" text-anchor="middle">Tárolók</text>
+<rect class="zone" id="z-power" x="20" y="212" width="400" height="60" rx="6"/><text class="lbl" x="220" y="246" text-anchor="middle">Áram: betáp, UPS akkumulátorok, generátor</text>
+</svg>
+</div>
+</div></section>
+
+<section id="energia"><div class="wrap">
+<h2>Mennyi áramot fogyaszt?</h2>
+<p>A nemzetközi becslések szerint (IEA) az adatközpontok 2024-ben a világ áramfogyasztásának nagyjából 1,5%-át, mintegy 400 TWh-t használtak, és 2030-ra ez az érték a becslések szerint megkétszereződhet. Próbáld ki, mi hat a saját számokra.</p>
+<div class="grid2">
+<div class="panel">
+<label for="it">IT-terhelés (szerverek): <output id="itO"></output> MW</label>
+<input id="it" type="range" min="1" max="100" value="20">
+<label for="pue">PUE (összes áram / IT áram): <output id="pueO"></output></label>
+<input id="pue" type="range" min="1.05" max="2" step="0.01" value="1.5">
+<label style="font-weight:400"><input id="aiC" type="checkbox"> AI-vezérelt hűtés (illusztratív: a hűtési többlet 30%-kal csökken)</label>
+</div>
+<div class="panel">
+<h3>Hová megy az áram?</h3>
+<div class="bar" aria-hidden="true"><i class="b-it" id="bIt"></i><i class="b-oh" id="bOh"></i></div>
+<p class="note" style="margin:0"><b style="color:var(--cold)">Kék:</b> számítás (szerverek). <b style="color:var(--hot)">Narancs:</b> hűtés, veszteségek, világítás.</p>
+<div class="kpis"><div><b id="kTot"></b><span>MW összes teljesítmény</span></div><div><b id="kGwh"></b><span>GWh egy évben</span></div><div><b id="kHh"></b><span>háztartás éves fogyasztása*</span></div></div>
+</div>
+</div>
+<p class="note" style="margin-top:14px">*Háztartásonként kb. 2,5 MWh/év feltételezéssel. A PUE 1,0 lenne az elméleti ideális érték; a modern nagy üzemek jellemzően 1,1–1,4 körül vannak.</p>
+</div></section>
+
+<section id="redundancia"><div class="wrap">
+<h2>Redundancia: hogyan nem áll le?</h2>
+<p>A célja, hogy egyetlen meghibásodás se állítsa le a szolgáltatást. Kattints bármelyik elemre az ábrán, és „tedd tönkre”. Billentyűvel Enter vagy szóköz is működik.</p>
+<div class="grid2">
+<div>
+<svg id="red" viewBox="0 0 560 250" role="group" aria-label="Kétágú áramellátás szimulátor" style="width:100%;height:auto"></svg>
+<div class="status" id="st" role="status" aria-live="polite"></div>
+<p style="margin-top:10px"><button id="rst">Mindent helyreállít</button></p>
+</div>
+<div>
+<h3>Szintek és állásidő</h3>
+<table><thead><tr><th>Uptime Institute szint</th><th>Rendelkezésre állás</th><th>Állásidő/év</th></tr></thead><tbody>
+<tr><td>Tier I</td><td>99,671%</td><td>28,8 óra</td></tr>
+<tr><td>Tier II</td><td>99,741%</td><td>22 óra</td></tr>
+<tr><td>Tier III</td><td>99,982%</td><td>1,6 óra</td></tr>
+<tr><td>Tier IV</td><td>99,995%</td><td>26 perc</td></tr></tbody></table>
+<dl><dt>N</dt><dd>Pontosan annyi egység, amennyi kell. Egy hiba kiesést okoz.</dd>
+<dt>N+1</dt><dd>Eggyel több egység, mint amennyi kell.</dd>
+<dt>2N</dt><dd>Teljes, független második ág, mint az ábrán.</dd></dl>
+</div>
+</div>
+</div></section>
+
+<section id="ai"><div class="wrap">
+<h2>Az AI szerepe: fogyasztó és segítő is</h2>
+<p>A mesterséges intelligencia betanítása és futtatása GPU-gyorsítókon történik, ezek sokkal sűrűbben fogyasztanak áramot, mint a hagyományos szerverek. Közben az AI maga is segít az üzemeltetésben.</p>
+<div class="panel">
+<label for="nr">Szekrények száma: <output id="nrO"></output></label>
+<input id="nr" type="range" min="10" max="500" step="10" value="100">
+<div class="cmp">
+<div class="row"><span>Hagyományos (~8 kW/szekrény)</span><div class="track"><i id="cT" style="background:var(--steel)"></i></div><b id="vT"></b></div>
+<div class="row"><span>AI GPU (~120 kW/szekrény)</span><div class="track"><i id="cA" style="background:var(--hot)"></i></div><b id="vA"></b></div>
+</div>
+<p class="note" style="margin:0">Tájékoztató nagyságrendek. Egy teljes folyadékhűtésű AI-szekrény ma jellemzően 100 kW feletti, ezt a levegő már nem tudja elvinni, ezért terjed a közvetlen folyadékhűtés.</p>
+</div>
+<div class="cards">
+<div class="panel"><h3>Az AI mint fogyasztó</h3><p style="margin:0">Egyetlen AI-szekrény annyit fogyaszthat, mint másfél tucat hagyományos. Ez új betáp-, hűtési és hálózati tervezést igényel, és a terhelés is ingadozóbb.</p></div>
+<div class="panel"><h3>Az AI mint üzemeltető</h3><p style="margin:0">Tanuló rendszerek a szenzoradatok alapján állítják a hűtést, jósolják a meghibásodásokat, és ütemezik a feladatokat. A Google DeepMind 2016-os kísérlete a hűtési energiát mintegy 40%-kal csökkentette.</p></div>
+</div>
+</div></section>
+
+<footer><div class="wrap">Az adatok nagyságrendi tájékoztatók (IEA, Uptime Institute, nyilvános gyártói és üzemeltetői közlések). Konkrét tervezéshez használj hivatalos forrást.</div></footer>
+
+<script>
+const $=s=>document.querySelector(s),fmt=(n,d=0)=>n.toLocaleString('hu-HU',{maximumFractionDigits:d,minimumFractionDigits:d});
+
+// Hero: szerverszekrények
+let h='';
+for(let r=0;r<5;r++){const x=8+r*86;h+=`<rect class="rack" x="${x}" y="8" width="76" height="254" rx="4"/>`;
+for(let i=0;i<14;i++){const y=16+i*17.5;h+=`<rect class="unit" x="${x+6}" y="${y}" width="64" height="13" rx="2"/><circle class="led${Math.random()<.15?' hot':''}" cx="${x+14}" cy="${y+6.5}" r="2.6" style="animation-delay:-${(Math.random()*3).toFixed(2)}s;animation-duration:${(1.4+Math.random()*2).toFixed(1)}s"/><rect x="${x+26}" y="${y+5}" width="${20+Math.random()*30|0}" height="3" rx="1.5" fill="#34607F"/>`}}
+$('#racks').innerHTML=h;
+
+// Felépítés fülek
+const T={servers:['Szerverek','A számítást végző gépek szekrényekben (rackekben). Egy szekrény 42 egységes, és a hagyományos esetben 5–10 kW-ot fogyaszt.','z-servers'],
+net:['Hálózat','Kapcsolók és routerek kötik össze a szervereket egymással és az internettel, általában több, különböző útvonalon érkező szálon.','z-net'],
+store:['Tárolók','SSD- és merevlemezes tárolórendszerek, az adatok több példányban, gyakran több épületben is megvannak.','z-store'],
+cool:['Hűtés','Szinte minden betáplált watt hővé alakul, ezt el kell vinni. Hideg- és melegfolyosós elrendezés, léghűtők vagy közvetlen folyadékhűtés viszi el.','z-cool'],
+power:['Áramellátás','Két független betáp, UPS akkumulátorok a pillanatnyi kiesésre, dízel- vagy gázgenerátor a hosszabb kiesésre.','z-power']};
+const tabs=$('#tabs');
+function pick(k){for(const b of tabs.children)b.setAttribute('aria-pressed',b.dataset.k===k);
+document.querySelectorAll('.zone').forEach(z=>z.classList.remove('on'));
+const el=document.getElementById(T[k][2]);(el.classList.contains('zone')?el:el.querySelector('.zone')).classList.add('on');
+$('#tt').textContent=T[k][0];$('#td').textContent=T[k][1]}
+for(const k in T){const b=document.createElement('button');b.textContent=T[k][0];b.dataset.k=k;b.onclick=()=>pick(k);tabs.append(b)}
+pick('servers');
+
+// Energia
+function en(){const it=+$('#it').value,pue=+$('#pue').value,ai=$('#aiC').checked;
+const eff=1+(pue-1)*(ai?.7:1),tot=it*eff,gwh=tot*8.76;
+$('#itO').textContent=it;$('#pueO').textContent=fmt(pue,2)+(ai?' → '+fmt(eff,2):'');
+$('#bIt').style.width=(100/eff)+'%';$('#bOh').style.width=(100-100/eff)+'%';
+$('#kTot').textContent=fmt(tot,1);$('#kGwh').textContent=fmt(gwh,0);$('#kHh').textContent=fmt(gwh*1000/2.5,0)}
+['#it','#pue','#aiC'].forEach(s=>$(s).addEventListener('input',en));en();
+
+// Redundancia
+const N=[['gA',20,25,'Hálózat A'],['gen',20,103,'Generátor'],['gB',20,181,'Hálózat B'],['uA',230,25,'UPS A'],['uB',230,181,'UPS B']];
+const L=[['wgA',140,47,230,47],['wnA',140,125,230,47],['wnB',140,125,230,203],['wgB',140,203,230,203],['wuA',350,47,420,125],['wuB',350,203,420,125]];
+let s,svg=$('#red');
+let g=L.map(l=>`<line class="wire" id="${l[0]}" x1="${l[1]}" y1="${l[2]}" x2="${l[3]}" y2="${l[4]}"/>`).join('');
+g+=N.map(n=>`<g class="node" id="${n[0]}" tabindex="0" role="button" aria-pressed="false" aria-label="${n[3]}"><rect x="${n[1]}" y="${n[2]}" width="120" height="44" rx="8"/><text x="${n[1]+60}" y="${n[2]+27}" text-anchor="middle">${n[3]}</text></g>`).join('');
+g+=`<g class="node rk" id="rk"><rect x="420" y="103" width="120" height="44" rx="8"/><text x="480" y="130" text-anchor="middle">Szerverszekrény</text></g>`;
+svg.innerHTML=g;
+const live=(id,on)=>document.getElementById(id).classList.toggle('live',on);
+function rd(){const A=(s.gA||s.gen)&&s.uA,B=(s.gB||s.gen)&&s.uB,n=A+B;
+live('wgA',s.gA&&s.uA);live('wgB',s.gB&&s.uB);live('wnA',!s.gA&&s.gen&&s.uA);live('wnB',!s.gB&&s.gen&&s.uB);live('wuA',A);live('wuB',B);
+N.forEach(x=>{const e=document.getElementById(x[0]);e.classList.toggle('dead',!s[x[0]]);e.setAttribute('aria-pressed',!s[x[0]])});
+$('#rk').classList.toggle('dead',n===0);
+const st=$('#st');st.className='status s'+n;
+st.textContent=n===2?'Mindkét ág él: a rack egy meghibásodást is kibír (2N).':n===1?'A rack üzemel, de már csak egy ágon áll. Nincs tartalék, gyorsan javítani kell!':'Kiesés: a rack áram nélkül maradt.'}
+function tg(id){s[id]=!s[id];rd()}
+function rs(){s={gA:1,gB:1,gen:1,uA:1,uB:1};rd()}
+N.forEach(n=>{const e=document.getElementById(n[0]);e.onclick=()=>tg(n[0]);e.onkeydown=ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();tg(n[0])}}});
+$('#rst').onclick=rs;rs();
+
+// AI
+function ai(){const n=+$('#nr').value,t=n*8/1000,a=n*120/1000;
+$('#nrO').textContent=n;$('#cT').style.width=(t/60*100)+'%';$('#cA').style.width=(a/60*100)+'%';
+$('#vT').textContent=fmt(t,1)+' MW';$('#vA').textContent=fmt(a,1)+' MW'}
+$('#nr').addEventListener('input',ai);ai();
+</script>
+</body>
+</html>
